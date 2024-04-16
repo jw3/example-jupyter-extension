@@ -1,0 +1,15 @@
+[package]
+name = "example-jupyterlab-extension"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "keplerviz"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.21", features = ["extension-module"] }
+polars = { version = "0.39", features = ["lazy", "strings", "concat_str", "regex"] }
+
+keplerize = { git = "https://github.com/jw3/keplerize" }
+meos = { git = "https://github.com/jw3/meos-rs", package = "meos-rs" }
