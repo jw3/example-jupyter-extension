@@ -1,6 +1,6 @@
 use std::env::args;
 use std::error::Error;
-use meos::prelude::{Temporal, TInst};
+use meos::prelude::{Temporal, TInst, TSeq};
 use polars::datatypes::AnyValue::{Int64, List, UInt32};
 use pyo3::prelude::*;
 use polars::prelude::*;
@@ -36,13 +36,10 @@ fn load_ais_csv(f: &str) -> PyResult<()> {
     let sz = df.height();
     if let [m, l, t, p] = df.get_columns() {
         for i in 0..sz {
-            let mut metric_trip_sz = 0;
             match (m.get(i).unwrap(), l.get(i).unwrap(), t.get(i).unwrap(), p.get(i).unwrap()) {
                 (Int64(mmsi), UInt32(len), List(ts), List(pt)) => {
-                    println!("{mmsi} {len}");
-                    to_posit(&pt, &ts).iter().for_each(|p| {
-                        println!("\t{}", p.to_mf_json().unwrap());
-                    });
+                    let seq = TSeq::make(&to_posit(&pt, &ts)).expect("tseq");
+                    println!("{}", seq.to_mf_json().expect("mfjson"));
                 }
                 _ => {}
             }
