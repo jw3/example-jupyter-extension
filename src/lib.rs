@@ -89,7 +89,7 @@ pub fn load_ais_csv(f: &str) -> PyResult<()> {
         .group_by(["MMSI"])
         .agg([
             len(),
-            col("T").sort(SortOptions::default().with_order_descending(false)),
+            col("T").sort(false),
             concat_str([col("LON"), col("LAT")], " ", true).alias("P"),
         ])
         .limit(1)
@@ -128,7 +128,7 @@ pub fn load_ais_csv(f: &str) -> PyResult<()> {
     let html_content = s.replacen("{<!--__DATASETS__-->}", &serialized, 1);
 
     let escaped_html_content = html_content.replace("\"", "&quot;");
-    println!("<iframe srcdoc=\"{}\"></iframe>", escaped_html_content);
+    println!("EVCXR_BEGIN_CONTENT text/html\n<iframe srcdoc=\"{}\"></iframe>\nEVCXR_END_CONTENT", escaped_html_content);
 
     Ok(())
 }
