@@ -66,16 +66,10 @@ fn str_to_ts<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<i64>, D::Error> {
 }
 
 
-#[pymodule]
-#[pyo3(name="keplerviz")]
-fn keplerviz_module(_py: Python, m: &PyModule) -> PyResult<()> {
-    meos::init();
-    m.add_function(wrap_pyfunction!(load_ais_csv, m)?)?;
-    Ok(())
-}
+
 
 #[pyfunction]
-pub fn load_ais_csv(f: &str) -> PyResult<()> {
+pub fn load_ais_csv(f: &str) -> PyResult<PyHtml> {
     println!("{f}");
     let df = LazyCsvReader::new(f).has_header(true).finish().expect("finish");
 
@@ -128,10 +122,24 @@ pub fn load_ais_csv(f: &str) -> PyResult<()> {
     let html_content = s.replacen("{<!--__DATASETS__-->}", &serialized, 1);
 
     let escaped_html_content = html_content.replace("\"", "&quot;");
-    println!("EVCXR_BEGIN_CONTENT text/html\n<iframe srcdoc=\"{}\"></iframe>\nEVCXR_END_CONTENT", escaped_html_content);
 
-    Ok(())
+    Ok(PyHtml{
+        html: escaped_html_content
+    })
 }
+
+#[pyclass]
+struct PyHtml {
+    html: String,
+}
+
+#[pymethods]
+impl PyHtml {
+    fn _repr_html_(&self) -> String {
+        format!("<iframe srcdoc=\"{}\"></iframe>", self.html.replace('\n', ""))
+    }
+}
+
 
 fn to_posit(p: &Series, t: &Series) -> Vec<TInst> {
     p.iter()
@@ -142,4 +150,14 @@ fn to_posit(p: &Series, t: &Series) -> Vec<TInst> {
             TInst::from_wkt(&format!("SRID=4326;Point({p})@{t}+00")).expect("tinst")
         })
         .collect()
+}
+
+
+#[pymodule]
+#[pyo3(name="keplerviz")]
+fn keplerviz_module(_py: Python, m: &PyModule) -> PyResult<()> {
+    meos::init();
+    m.add_function(wrap_pyfunction!(load_ais_csv, m)?)?;
+    m.add_class::<PyHtml>()?;
+    Ok(())
 }
