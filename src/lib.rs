@@ -1,11 +1,15 @@
 use std::error::Error;
+
 use chrono::DateTime;
 use keplerize::{Data, Dataset, Feature, Info, LineString, Row};
 use meos::prelude::{Temporal, TInst, TSeq};
 use polars::datatypes::AnyValue::{Int64, List, UInt32};
-use pyo3::prelude::*;
 use polars::prelude::*;
+use pyo3::prelude::*;
+use pyo3_polars::{PyDataFrame, PyLazyFrame};
 use serde::{Deserialize, Deserializer, Serialize};
+
+mod render;
 
 #[derive(Deserialize, Debug)]
 struct Rec {
@@ -13,6 +17,7 @@ struct Rec {
     pub vt: u32,
     pub json: Mf,
 }
+
 #[derive(Deserialize, Debug)]
 struct Mf {
     pub coordinates: Vec<[f64; 2]>,
@@ -65,29 +70,32 @@ fn str_to_ts<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<i64>, D::Error> {
     }
 }
 
+#[pyfunction]
+pub fn load_ais_csv(path: &str) -> PyHtml {
+    //let x = env::var("KEPLER_SIZE").map(|v|v.split_once(",").map(|(x, y)|(x.parse(), y.parse())).unwrap_or(("x", "y"))).unwrap_or(("x", "y"));
 
-
+    println!("load csv {path}");
+    let df = LazyCsvReader::new(path).has_header(true).finish().expect("finish");
+    let df = df.select([
+        col("MMSI"),
+        col("BaseDateTime").alias("T"),
+        col("LAT"),
+        col("LON"),
+    ]);
+    keplerize_df(PyLazyFrame(df))
+}
 
 #[pyfunction]
-pub fn load_ais_csv(f: &str) -> PyResult<PyHtml> {
-    println!("{f}");
-    let df = LazyCsvReader::new(f).has_header(true).finish().expect("finish");
-
-    let df = df
-        .select([
-            col("MMSI"),
-            col("BaseDateTime").alias("T"),
-            col("LAT"),
-            col("LON"),
-        ])
-        .group_by(["MMSI"])
+pub fn keplerize_df(df: PyLazyFrame) -> PyHtml {
+    let df: LazyFrame = df.into();
+    let df = df.group_by(["MMSI"])
         .agg([
             len(),
-            col("T").sort(false),
+            col("T").sort(SortOptions::default()),
             concat_str([col("LON"), col("LAT")], " ", true).alias("P"),
         ])
-        .limit(1)
         .collect().expect("lazy");
+
     let sz = df.height();
     let mut rows = vec![];
     if let [m, l, t, p] = df.get_columns() {
@@ -116,16 +124,7 @@ pub fn load_ais_csv(f: &str) -> PyResult<PyHtml> {
             rows: &rows,
         },
     };
-
-    let serialized = serde_json::to_string(&ds).unwrap();
-    let s = include_str!("template.html");
-    let html_content = s.replacen("{<!--__DATASETS__-->}", &serialized, 1);
-
-    let escaped_html_content = html_content.replace("\"", "&quot;");
-
-    Ok(PyHtml{
-        html: escaped_html_content
-    })
+    render::map(ds)
 }
 
 #[pyclass]
@@ -154,10 +153,11 @@ fn to_posit(p: &Series, t: &Series) -> Vec<TInst> {
 
 
 #[pymodule]
-#[pyo3(name="keplerviz")]
+#[pyo3(name = "keplerviz")]
 fn keplerviz_module(_py: Python, m: &PyModule) -> PyResult<()> {
     meos::init();
     m.add_function(wrap_pyfunction!(load_ais_csv, m)?)?;
+    m.add_function(wrap_pyfunction!(keplerize_df, m)?)?;
     m.add_class::<PyHtml>()?;
     Ok(())
 }

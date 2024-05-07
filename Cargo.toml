@@ -9,7 +9,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { version = "0.21", features = ["extension-module"] }
-polars = { version = "0.37", features = ["lazy", "strings", "concat_str", "regex"] }
+polars = { version = "0.39", features = ["lazy", "strings", "concat_str", "regex"] }
+pyo3-polars = { version = "0.13.0", features = ["lazy"] }
 serde_json = "1.0"
 chrono = "0.4"
 typetag = "0.2"
