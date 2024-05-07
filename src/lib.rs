@@ -135,7 +135,7 @@ struct PyHtml {
 #[pymethods]
 impl PyHtml {
     fn _repr_html_(&self) -> String {
-        format!("<iframe srcdoc=\"{}\"></iframe>", self.html.replace('\n', ""))
+        format!("<iframe width='75%' height='400px' srcdoc=\"{}\"></iframe>", self.html.replace('\n', ""))
     }
 }
 
