@@ -88,11 +88,11 @@ pub fn load_ais_csv(path: &str) -> PyHtml {
 #[pyfunction]
 pub fn keplerize_df(df: PyLazyFrame) -> PyHtml {
     let df: LazyFrame = df.into();
-    let df = df.group_by(["MMSI"])
+    let df = df.group_by(["mmsi"])
         .agg([
             len(),
-            col("T").sort(SortOptions::default()),
-            concat_str([col("LON"), col("LAT")], " ", true).alias("P"),
+            col("t").sort(SortOptions::default()),
+            concat_str([col("lon"), col("lat")], " ", true).alias("p"),
         ])
         .collect().expect("lazy");
 
