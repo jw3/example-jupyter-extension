@@ -165,6 +165,9 @@ fn to_posit(p: &Series, t: &Series) -> Vec<TInst> {
 #[pyo3(name = "keplerviz")]
 fn keplerviz_module(_py: Python, m: &PyModule) -> PyResult<()> {
     meos::init();
+    m.add_function(wrap_pyfunction!(a, m)?)?;
+    m.add_function(wrap_pyfunction!(b, m)?)?;
+    m.add_function(wrap_pyfunction!(c, m)?)?;
     m.add_function(wrap_pyfunction!(load_ais_csv, m)?)?;
     m.add_function(wrap_pyfunction!(keplerize_df, m)?)?;
     m.add_function(wrap_pyfunction!(keplerize_lf, m)?)?;
