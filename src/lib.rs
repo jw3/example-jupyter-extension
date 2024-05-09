@@ -97,7 +97,7 @@ pub fn keplerize_lf(df: PyLazyFrame) -> PyHtml {
 }
 
 #[pyfunction]
-pub fn a(df: PyLazyFrame) -> String {
+pub fn a(df: PyLazyFrame) -> PyDataFrame {
     let df: LazyFrame = df.into();
     let df = df.group_by(["mmsi"])
         .agg([
@@ -106,25 +106,18 @@ pub fn a(df: PyLazyFrame) -> String {
             concat_str([col("lon"), col("lat")], " ", true).alias("p"),
         ])
         .collect().expect("lazy");
-    "ok".to_owned()
+    PyDataFrame(df)
 }
 
 #[pyfunction]
-pub fn b(df: PyLazyFrame) -> String {
-    let df: LazyFrame = df.into();
-    let df = df.group_by(["mmsi"])
-        .agg([
-            len(),
-            col("t").sort(SortOptions::default()),
-            concat_str([col("lon"), col("lat")], " ", true).alias("p"),
-        ])
-        .collect().expect("lazy");
+pub fn b(df: PyDataFrame) -> String {
+    let df: DataFrame = df.into();
     let sz = df.height();
     let mut rows = vec![];
     if let [m, l, t, p] = df.get_columns() {
         let vtype = 0;
         for i in 0..sz {
-            match (m.get(i).unwrap(), l.get(i).unwrap(), t.get(i).unwrap(), p.get(i).unwrap()) {
+            match (m.get(i).expect("m"), l.get(i).expect("l"), t.get(i).expect("t"), p.get(i).expect("p")) {
                 (Int64(mmsi), UInt32(len), List(ts), List(pt)) => {
                     let seq = TSeq::make(&to_posit(&pt, &ts)).expect("tseq");
                     let output = seq.as_json().unwrap();
@@ -132,7 +125,9 @@ pub fn b(df: PyLazyFrame) -> String {
                     let de = serde_json::from_str::<Rec>(&ser).unwrap();
                     rows.push(MyRow::from(de));
                 }
-                _ => {}
+                _ => {
+                    return format!("missed on {i}")
+                }
             }
         }
     };
