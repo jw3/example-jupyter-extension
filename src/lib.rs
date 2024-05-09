@@ -108,6 +108,33 @@ pub fn a(df: PyLazyFrame) -> PyDataFrame {
 }
 
 #[pyfunction]
+pub fn b1(df: PyDataFrame) -> String {
+    let df: DataFrame = df.into();
+    format!("{}", df.height())
+}
+
+#[pyfunction]
+pub fn b2(df: PyDataFrame) -> String {
+    let df: DataFrame = df.into();
+    let sz = df.height();
+    let mut rows = vec![];
+    if let [m, l, t, p] = df.get_columns() {
+        let vtype = 0;
+        for i in 0..sz {
+            match (m.get(i).expect("m"), l.get(i).expect("l"), t.get(i).expect("t"), p.get(i).expect("p")) {
+                (Int64(mmsi), UInt32(len), List(ts), List(pt)) => {
+                    rows.push(format!("{mmsi}"));
+                }
+                _ => {
+                    return format!("missed on {i}")
+                }
+            }
+        }
+    };
+    rows.join(",")
+}
+
+#[pyfunction]
 pub fn b(df: PyDataFrame) -> String {
     let df: DataFrame = df.into();
     let sz = df.height();
@@ -280,6 +307,7 @@ fn keplerviz_module(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(a, m)?)?;
     m.add_function(wrap_pyfunction!(ab, m)?)?;
     m.add_function(wrap_pyfunction!(b, m)?)?;
+    m.add_function(wrap_pyfunction!(b2, m)?)?;
     m.add_function(wrap_pyfunction!(c, m)?)?;
     m.add_function(wrap_pyfunction!(load_ais_csv, m)?)?;
     m.add_function(wrap_pyfunction!(keplerize_df, m)?)?;
