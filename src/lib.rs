@@ -312,6 +312,8 @@ fn keplerviz_module(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(c, m)?)?;
     m.add_function(wrap_pyfunction!(load_ais_csv, m)?)?;
     m.add_function(wrap_pyfunction!(keplerize_df, m)?)?;
+    m.add_function(wrap_pyfunction!(keplerize_lf, m)?)?;
+
     m.add_class::<PyHtml>()?;
     Ok(())
 }
