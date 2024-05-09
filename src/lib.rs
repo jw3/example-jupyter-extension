@@ -94,6 +94,85 @@ pub fn keplerize_lf(df: PyLazyFrame) -> PyHtml {
     keplerize_lazy_frame(df.into())
 }
 
+#[pyfunction]
+pub fn a(df: PyLazyFrame) -> PyDataFrame {
+    let df: LazyFrame = df.into();
+    let df = df.group_by(["mmsi"])
+        .agg([
+            len(),
+            col("t").sort(SortOptions::default()),
+            concat_str([col("lon"), col("lat")], " ", true).alias("p"),
+        ])
+        .collect().expect("lazy");
+    PyDataFrame(df)
+}
+
+#[pyfunction]
+pub fn b(df: PyDataFrame) -> String {
+    let df: DataFrame = df.into();
+    let sz = df.height();
+    let mut rows = vec![];
+    if let [m, l, t, p] = df.get_columns() {
+        let vtype = 0;
+        for i in 0..sz {
+            match (m.get(i).expect("m"), l.get(i).expect("l"), t.get(i).expect("t"), p.get(i).expect("p")) {
+                (Int64(mmsi), UInt32(len), List(ts), List(pt)) => {
+                    let seq = TSeq::make(&to_posit(&pt, &ts)).expect("tseq");
+                    let output = seq.as_json().unwrap();
+                    let ser = format!(r#"{{"id":{mmsi},"vt":{vtype},"json":{output}}}"#);
+                    let de = serde_json::from_str::<Rec>(&ser).unwrap();
+                    rows.push(MyRow::from(de));
+                }
+                _ => {
+                    return format!("missed on {i}")
+                }
+            }
+        }
+    };
+    "ok".to_owned()
+}
+
+#[pyfunction]
+pub fn c(df: PyLazyFrame) -> String {
+    let df: LazyFrame = df.into();
+    let df = df.group_by(["mmsi"])
+        .agg([
+            len(),
+            col("t").sort(SortOptions::default()),
+            concat_str([col("lon"), col("lat")], " ", true).alias("p"),
+        ])
+        .collect().expect("lazy");
+    let sz = df.height();
+    let mut rows = vec![];
+    if let [m, l, t, p] = df.get_columns() {
+        let vtype = 0;
+        for i in 0..sz {
+            match (m.get(i).unwrap(), l.get(i).unwrap(), t.get(i).unwrap(), p.get(i).unwrap()) {
+                (Int64(mmsi), UInt32(len), List(ts), List(pt)) => {
+                    let seq = TSeq::make(&to_posit(&pt, &ts)).expect("tseq");
+                    let output = seq.as_json().unwrap();
+                    let ser = format!(r#"{{"id":{mmsi},"vt":{vtype},"json":{output}}}"#);
+                    let de = serde_json::from_str::<Rec>(&ser).unwrap();
+                    rows.push(MyRow::from(de));
+                }
+                _ => {}
+            }
+        }
+    };
+    let ds = Dataset::<MyRow> {
+        info: Info {
+            id: "0000",
+            label: "example",
+        },
+        data: Data {
+            fields: &["id".into(), "vessel-type".into()],
+            rows: &rows,
+        },
+    };
+    "ok".to_owned()
+}
+
+
 pub fn keplerize_lazy_frame(df: LazyFrame) -> PyHtml {
     let df: LazyFrame = df.into();
     let df = df
