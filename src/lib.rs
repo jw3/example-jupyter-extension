@@ -133,6 +133,39 @@ pub fn b(df: PyDataFrame) -> String {
 }
 
 #[pyfunction]
+pub fn ab(df: PyLazyFrame) -> String {
+    let df: LazyFrame = df.into();
+    let df = df.group_by(["mmsi"])
+        .agg([
+            len(),
+            col("t").sort(SortOptions::default()),
+            concat_str([col("lon"), col("lat")], " ", true).alias("p"),
+        ])
+        .collect().expect("lazy");
+    let df: DataFrame = df.into();
+    let sz = df.height();
+    let mut rows = vec![];
+    if let [m, l, t, p] = df.get_columns() {
+        let vtype = 0;
+        for i in 0..sz {
+            match (m.get(i).expect("m"), l.get(i).expect("l"), t.get(i).expect("t"), p.get(i).expect("p")) {
+                (Int64(mmsi), UInt32(len), List(ts), List(pt)) => {
+                    let seq = TSeq::make(&to_posit(&pt, &ts)).expect("tseq");
+                    let output = seq.as_json().unwrap();
+                    let ser = format!(r#"{{"id":{mmsi},"vt":{vtype},"json":{output}}}"#);
+                    let de = serde_json::from_str::<Rec>(&ser).unwrap();
+                    rows.push(MyRow::from(de));
+                }
+                _ => {
+                    return format!("missed on {i}")
+                }
+            }
+        }
+    };
+    "ok".to_owned()
+}
+
+#[pyfunction]
 pub fn c(df: PyLazyFrame) -> String {
     let df: LazyFrame = df.into();
     let df = df.group_by(["mmsi"])
@@ -245,6 +278,7 @@ fn to_posit(p: &Series, t: &Series) -> Vec<TInst> {
 fn keplerviz_module(_py: Python, m: &PyModule) -> PyResult<()> {
     meos::init();
     m.add_function(wrap_pyfunction!(a, m)?)?;
+    m.add_function(wrap_pyfunction!(ab, m)?)?;
     m.add_function(wrap_pyfunction!(b, m)?)?;
     m.add_function(wrap_pyfunction!(c, m)?)?;
     m.add_function(wrap_pyfunction!(load_ais_csv, m)?)?;
