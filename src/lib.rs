@@ -82,11 +82,20 @@ pub fn load_ais_csv(path: &str) -> PyHtml {
         col("LAT"),
         col("LON"),
     ]);
-    keplerize_df(PyLazyFrame(df))
+    keplerize_lazy_frame(df)
 }
 
 #[pyfunction]
-pub fn keplerize_df(df: PyLazyFrame) -> PyHtml {
+pub fn keplerize_df(df: PyDataFrame) -> crate::PyHtml {
+    let df :DataFrame  = df.into();
+    keplerize_lazy_frame(df.lazy())
+}
+
+#[pyfunction]
+pub fn keplerize_lf(df: PyLazyFrame) -> PyHtml {
+    keplerize_lazy_frame(df.into())
+}
+pub fn keplerize_lazy_frame(df: LazyFrame) -> PyHtml {
     let df: LazyFrame = df.into();
     let df = df.group_by(["mmsi"])
         .agg([
