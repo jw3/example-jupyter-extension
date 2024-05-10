@@ -125,7 +125,8 @@ pub fn b2(df: PyDataFrame) -> String {
         for i in 0..sz {
             match (m.get(i).expect("m"), l.get(i).expect("l"), t.get(i).expect("t"), p.get(i).expect("p")) {
                 (Int64(mmsi), UInt32(len), List(ts), List(pt)) => {
-                    rows.push(format!("{mmsi}"));
+                    //rows.push(format!("{mmsi}"));
+                    to_posit(&pt, &ts);
                 }
                 _ => {
                     match m.get(i).expect("m2") {
