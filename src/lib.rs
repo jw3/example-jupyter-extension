@@ -130,19 +130,19 @@ pub fn b2(df: PyDataFrame) -> String {
                 _ => {
                     match m.get(i).expect("m2") {
                         Int64(mmsi) => rows.push("m-OK".to_string()),
-                        _ => rows.push("m-FAIL".to_string()),
+                        x => rows.push(format!("m-FAIL {x:?}")),
                     }
                     match l.get(i).expect("l2") {
                         UInt32(len) => rows.push("l-OK".to_string()),
-                        _ => rows.push("l-FAIL".to_string()),
+                        x => rows.push(format!("l-FAIL {x:?}")),
                     }
                     match t.get(i).expect("t2") {
                         List(ts) => rows.push("t-OK".to_string()),
-                        _ => rows.push("t-FAIL".to_string()),
+                        x => rows.push(format!("t-FAIL {x:?}")),
                     }
                     match p.get(i).expect("p2") {
                         List(pt) => rows.push("p-OK".to_string()),
-                        _ => rows.push("p-FAIL".to_string()),
+                        x => rows.push(format!("p-FAIL {x:?}")),
                     }
                     // return format!("missed on {i}")
                     break;
