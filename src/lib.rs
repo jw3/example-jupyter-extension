@@ -123,9 +123,13 @@ pub fn b2(df: PyDataFrame) -> String {
         for i in 0..sz {
             match (m.get(i).expect("m"), l.get(i).expect("l"), t.get(i).expect("t"), p.get(i).expect("p")) {
                 (Int64(mmsi), UInt32(len), List(ts), List(pt)) => {
-                    if TSeq::make(&to_posit(&pt, &ts)).is_none() {
-                        rows.push(format!("{mmsi}"))
+                    let ulen = ts.unique().iter().len();
+                    if ulen as u32 != len {
+                        rows.push(format!("{mmsi} {ulen} != {len} on ts"))
                     }
+                    // if TSeq::make(&to_posit(&pt, &ts)).is_none() {
+                    //     rows.push(format!("{mmsi}"))
+                    // }
                 }
                 _ => {
                     match m.get(i).expect("m2") {
