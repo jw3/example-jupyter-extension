@@ -262,12 +262,14 @@ pub fn c(df: PyLazyFrame) -> String {
 
 pub fn keplerize_lazy_frame(df: LazyFrame) -> PyHtml {
     let df: LazyFrame = df.into();
-    let df = df.group_by(["mmsi"])
+    let df = df
+        .unique(Some(vec!["t".to_string()]) ,UniqueKeepStrategy::First)
+        .group_by(["mmsi"])
         .agg([
             len(),
             col("t").sort(SortOptions::default()),
             concat_str([col("lon"), col("lat")], " ", true).alias("p"),
-        ])
+        ]).filter(col("len").gt(1))
         .collect().expect("lazy");
 
     let sz = df.height();
