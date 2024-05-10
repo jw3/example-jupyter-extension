@@ -99,10 +99,12 @@ pub fn keplerize_lf(df: PyLazyFrame) -> PyHtml {
 #[pyfunction]
 pub fn a(df: PyLazyFrame) -> PyDataFrame {
     let df: LazyFrame = df.into();
-    let df = df.group_by(["mmsi"])
+    let df = df
+        .unique(Some(vec!["t".to_string()]) ,UniqueKeepStrategy::First)
+        .group_by(["mmsi"])
         .agg([
             len(),
-            col("t").sort(SortOptions::default()).unique(),
+            col("t").sort(SortOptions::default()),
             concat_str([col("lon"), col("lat")], " ", true).alias("p"),
         ])
         .collect().expect("lazy");
