@@ -100,7 +100,7 @@ pub fn a(df: PyLazyFrame) -> PyDataFrame {
     let df = df.group_by(["mmsi"])
         .agg([
             len(),
-            col("t").sort(SortOptions::default()),
+            col("t").sort(SortOptions::default()).unique(),
             concat_str([col("lon"), col("lat")], " ", true).alias("p"),
         ])
         .collect().expect("lazy");
