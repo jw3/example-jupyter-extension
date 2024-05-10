@@ -126,7 +126,24 @@ pub fn b2(df: PyDataFrame) -> String {
                     rows.push(format!("{mmsi}"));
                 }
                 _ => {
-                    return format!("missed on {i}")
+                    match m.get(i).expect("m2") {
+                        Int64(mmsi) => rows.push("m-OK".to_string()),
+                        _ => rows.push("m-FAIL".to_string()),
+                    }
+                    match l.get(i).expect("l2") {
+                        UInt32(len) => rows.push("l-OK".to_string()),
+                        _ => rows.push("l-FAIL".to_string()),
+                    }
+                    match t.get(i).expect("t2") {
+                        List(ts) => rows.push("t-OK".to_string()),
+                        _ => rows.push("t-FAIL".to_string()),
+                    }
+                    match p.get(i).expect("p2") {
+                        List(pt) => rows.push("p-OK".to_string()),
+                        _ => rows.push("p-FAIL".to_string()),
+                    }
+                    // return format!("missed on {i}")
+                    break;
                 }
             }
         }
