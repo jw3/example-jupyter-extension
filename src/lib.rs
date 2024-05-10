@@ -104,7 +104,7 @@ pub fn a(df: PyLazyFrame) -> PyDataFrame {
             len(),
             col("t").sort(SortOptions::default()),
             concat_str([col("lon"), col("lat")], " ", true).alias("p"),
-        ])
+        ]).filter(col("len").gt(1))
         .collect().expect("lazy");
     PyDataFrame(df)
 }
