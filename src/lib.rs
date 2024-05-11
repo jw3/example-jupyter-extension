@@ -98,7 +98,6 @@ pub fn keplerize_lf(df: PyLazyFrame) -> PyHtml {
 pub fn a(df: PyLazyFrame) -> PyDataFrame {
     let df: LazyFrame = df.into();
     let df = df
-        .unique(Some(vec!["t".to_string()]) ,UniqueKeepStrategy::First)
         .group_by(["mmsi"])
         .agg([
             len(),
@@ -261,7 +260,6 @@ pub fn c(df: PyLazyFrame) -> String {
 pub fn keplerize_lazy_frame(df: LazyFrame) -> PyHtml {
     let df: LazyFrame = df.into();
     let df = df
-        .unique(Some(vec!["t".to_string()]) ,UniqueKeepStrategy::First)
         .group_by(["mmsi"])
         .agg([
             len(),
