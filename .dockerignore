@@ -1,0 +1,5 @@
+.venv
+.local
+target
+*.pyc
+*.so
