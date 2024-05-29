@@ -77,10 +77,10 @@ pub fn load_ais_csv(path: &str) -> PyHtml {
     println!("load csv {path}");
     let df = LazyCsvReader::new(path).has_header(true).finish().expect("finish");
     let df = df.select([
-        col("MMSI"),
-        col("BaseDateTime").alias("T"),
-        col("LAT"),
-        col("LON"),
+        col("mmsi"),
+        col("t"),
+        col("lat"),
+        col("lon"),
     ]);
     keplerize_lazy_frame(df)
 }
