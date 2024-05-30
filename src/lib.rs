@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use chrono::DateTime;
 use keplerize::{Data, Dataset, Feature, Info, LineString, Row};
 use meos::prelude::{Temporal, TInst, TSeq};
@@ -77,23 +75,34 @@ pub fn load_ais_csv(path: &str) -> PyHtml {
     println!("load csv {path}");
     let df = LazyCsvReader::new(path).has_header(true).finish().expect("finish");
     let df = df.select([
-        col("MMSI"),
-        col("BaseDateTime").alias("T"),
-        col("LAT"),
-        col("LON"),
+        col("mmsi"),
+        col("t"),
+        col("lat"),
+        col("lon"),
     ]);
-    keplerize_df(PyLazyFrame(df))
+    keplerize_lazy_frame(df)
 }
 
 #[pyfunction]
-pub fn keplerize_df(df: PyLazyFrame) -> PyHtml {
+pub fn keplerize_df(df: PyDataFrame) -> crate::PyHtml {
+    let df :DataFrame  = df.into();
+    keplerize_lazy_frame(df.lazy())
+}
+
+#[pyfunction]
+pub fn keplerize_lf(df: PyLazyFrame) -> PyHtml {
+    keplerize_lazy_frame(df.into())
+}
+
+pub fn keplerize_lazy_frame(df: LazyFrame) -> PyHtml {
     let df: LazyFrame = df.into();
-    let df = df.group_by(["mmsi"])
+    let df = df
+        .group_by(["mmsi"])
         .agg([
             len(),
             col("t").sort(SortOptions::default()),
             concat_str([col("lon"), col("lat")], " ", true).alias("p"),
-        ])
+        ]).filter(col("len").gt(1))
         .collect().expect("lazy");
 
     let sz = df.height();
@@ -102,7 +111,7 @@ pub fn keplerize_df(df: PyLazyFrame) -> PyHtml {
         let vtype = 0;
         for i in 0..sz {
             match (m.get(i).unwrap(), l.get(i).unwrap(), t.get(i).unwrap(), p.get(i).unwrap()) {
-                (Int64(mmsi), UInt32(len), List(ts), List(pt)) => {
+                (Int64(mmsi), UInt32(_len), List(ts), List(pt)) => {
                     let seq = TSeq::make(&to_posit(&pt, &ts)).expect("tseq");
                     let output = seq.as_json().unwrap();
                     let ser = format!(r#"{{"id":{mmsi},"vt":{vtype},"json":{output}}}"#);
@@ -128,7 +137,7 @@ pub fn keplerize_df(df: PyLazyFrame) -> PyHtml {
 }
 
 #[pyclass]
-struct PyHtml {
+pub struct PyHtml {
     html: String,
 }
 
@@ -158,6 +167,8 @@ fn keplerviz_module(_py: Python, m: &PyModule) -> PyResult<()> {
     meos::init();
     m.add_function(wrap_pyfunction!(load_ais_csv, m)?)?;
     m.add_function(wrap_pyfunction!(keplerize_df, m)?)?;
+    m.add_function(wrap_pyfunction!(keplerize_lf, m)?)?;
+
     m.add_class::<PyHtml>()?;
     Ok(())
 }

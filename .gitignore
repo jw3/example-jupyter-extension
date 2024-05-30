@@ -3,3 +3,5 @@ target
 .local
 .venv
 Cargo.lock
+*.pyc
+*.so
