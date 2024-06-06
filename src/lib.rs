@@ -1,5 +1,5 @@
 use chrono::DateTime;
-use keplerize::{Data, Dataset, Feature, Info, LineString, Row, TFeature, TLineString};
+use keplerize::{Data, Dataset, Feature, Info, LineString, Row};
 use meos::prelude::{Temporal, TInst, TSeq};
 use polars::datatypes::AnyValue::{Int64, List, UInt32};
 use polars::prelude::*;
@@ -25,10 +25,10 @@ struct Mf {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-struct GRow(Feature, u64, u32);
+struct GRow(Feature<LineString>, u64, u32);
 
 #[derive(Deserialize, Serialize, Debug)]
-struct TRow(TFeature, u64, u32);
+struct TRow(Feature<LineString>, u64, u32);
 
 #[typetag::serde]
 impl Row for GRow {}
@@ -42,7 +42,7 @@ impl From<Rec> for GRow {
             .map(|[x, y]| [x, y, 0.0]);
         let g = LineString {
             //geometry_type: "LineString",
-            coordinates: coords.collect(),
+            coordinates: coords.map(|x| x.into()).collect(),
         };
         GRow(Feature { geometry: g }, src.id, src.vt)
     }
@@ -62,11 +62,11 @@ impl From<Rec> for TRow {
             .zip(src.json.coordinates)
             .into_iter()
             .map(|(t, [x, y])| [x, y, 0.0, t]);
-        let g = TLineString {
+        let g = LineString {
             //geometry_type: "LineString",
-            coordinates: coords.collect(),
+            coordinates: coords.map(|x| x.into()).collect(),
         };
-        TRow(TFeature { geometry: g }, src.id, src.vt)
+        TRow(Feature { geometry: g }, src.id, src.vt)
     }
 }
 
