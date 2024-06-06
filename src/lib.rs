@@ -72,7 +72,6 @@ fn str_to_ts<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<i64>, D::Error> {
 pub fn load_ais_csv(path: &str) -> PyHtml {
     //let x = env::var("KEPLER_SIZE").map(|v|v.split_once(",").map(|(x, y)|(x.parse(), y.parse())).unwrap_or(("x", "y"))).unwrap_or(("x", "y"));
 
-    println!("load csv {path}");
     let df = LazyCsvReader::new(path).has_header(true).finish().expect("finish");
     let df = df.select([
         col("mmsi"),
