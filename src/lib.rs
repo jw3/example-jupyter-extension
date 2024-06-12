@@ -25,12 +25,33 @@ struct Mf {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-struct MyRow(Feature, u64, u32);
+struct GRow(Feature<LineString>, u64, u32);
+
+#[derive(Deserialize, Serialize, Debug)]
+struct TRow(Feature<LineString>, u64, u32);
 
 #[typetag::serde]
-impl Row for MyRow {}
+impl Row for GRow {}
 
-impl From<Rec> for MyRow {
+impl From<Rec> for GRow {
+    fn from(src: Rec) -> Self {
+        let coords = src
+            .json
+            .coordinates
+            .into_iter()
+            .map(|[x, y]| [x, y, 0.0]);
+        let g = LineString {
+            //geometry_type: "LineString",
+            coordinates: coords.map(|x| x.into()).collect(),
+        };
+        GRow(Feature { geometry: g }, src.id, src.vt)
+    }
+}
+
+#[typetag::serde]
+impl Row for TRow {}
+
+impl From<Rec> for TRow {
     fn from(src: Rec) -> Self {
         assert_eq!(src.json.coordinates.len(), src.json.datetimes.len());
         let coords = src
@@ -43,9 +64,9 @@ impl From<Rec> for MyRow {
             .map(|(t, [x, y])| [x, y, 0.0, t]);
         let g = LineString {
             //geometry_type: "LineString",
-            coordinates: coords.collect(),
+            coordinates: coords.map(|x| x.into()).collect(),
         };
-        MyRow(Feature { geometry: g }, src.id, src.vt)
+        TRow(Feature { geometry: g }, src.id, src.vt)
     }
 }
 
@@ -69,10 +90,7 @@ fn str_to_ts<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<i64>, D::Error> {
 }
 
 #[pyfunction]
-pub fn load_ais_csv(path: &str) -> PyHtml {
-    //let x = env::var("KEPLER_SIZE").map(|v|v.split_once(",").map(|(x, y)|(x.parse(), y.parse())).unwrap_or(("x", "y"))).unwrap_or(("x", "y"));
-
-    println!("load csv {path}");
+pub fn animate_ais_csv(path: &str) -> PyHtml {
     let df = LazyCsvReader::new(path).has_header(true).finish().expect("finish");
     let df = df.select([
         col("mmsi"),
@@ -80,21 +98,44 @@ pub fn load_ais_csv(path: &str) -> PyHtml {
         col("lat"),
         col("lon"),
     ]);
-    keplerize_lazy_frame(df)
+    animate_lazy_frame(df)
 }
 
 #[pyfunction]
-pub fn keplerize_df(df: PyDataFrame) -> crate::PyHtml {
+pub fn render_ais_csv(path: &str) -> PyHtml {
+    let df = LazyCsvReader::new(path).has_header(true).finish().expect("finish");
+    let df = df.select([
+        col("mmsi"),
+        col("t"),
+        col("lat"),
+        col("lon"),
+    ]);
+    render_lazy_frame(df)
+}
+
+#[pyfunction]
+pub fn animate_df(df: PyDataFrame) -> crate::PyHtml {
     let df :DataFrame  = df.into();
-    keplerize_lazy_frame(df.lazy())
+    animate_lazy_frame(df.lazy())
 }
 
 #[pyfunction]
-pub fn keplerize_lf(df: PyLazyFrame) -> PyHtml {
-    keplerize_lazy_frame(df.into())
+pub fn animate_lf(df: PyLazyFrame) -> PyHtml {
+    animate_lazy_frame(df.into())
 }
 
-pub fn keplerize_lazy_frame(df: LazyFrame) -> PyHtml {
+#[pyfunction]
+pub fn render_df(df: PyDataFrame) -> crate::PyHtml {
+    let df :DataFrame  = df.into();
+    render_lazy_frame(df.lazy())
+}
+
+#[pyfunction]
+pub fn render_lf(df: PyLazyFrame) -> PyHtml {
+    render_lazy_frame(df.into())
+}
+
+pub fn animate_lazy_frame(df: LazyFrame) -> PyHtml {
     let df: LazyFrame = df.into();
     let df = df
         .group_by(["mmsi"])
@@ -116,14 +157,56 @@ pub fn keplerize_lazy_frame(df: LazyFrame) -> PyHtml {
                     let output = seq.as_json().unwrap();
                     let ser = format!(r#"{{"id":{mmsi},"vt":{vtype},"json":{output}}}"#);
                     let de = serde_json::from_str::<Rec>(&ser).unwrap();
-                    rows.push(MyRow::from(de));
+                    rows.push(TRow::from(de));
                 }
                 _ => {}
             }
         }
     };
 
-    let ds = Dataset::<MyRow> {
+    let ds = Dataset::<TRow> {
+        info: Info {
+            id: "0000",
+            label: "example",
+        },
+        data: Data {
+            fields: &["id".into(), "vessel-type".into()],
+            rows: &rows,
+        },
+    };
+    render::map(ds)
+}
+
+pub fn render_lazy_frame(df: LazyFrame) -> PyHtml {
+    let df: LazyFrame = df.into();
+    let df = df
+        .group_by(["mmsi"])
+        .agg([
+            len(),
+            col("t").sort(SortOptions::default()),
+            concat_str([col("lon"), col("lat")], " ", true).alias("p"),
+        ]).filter(col("len").gt(1))
+        .collect().expect("lazy");
+
+    let sz = df.height();
+    let mut rows = vec![];
+    if let [m, l, t, p] = df.get_columns() {
+        let vtype = 0;
+        for i in 0..sz {
+            match (m.get(i).unwrap(), l.get(i).unwrap(), t.get(i).unwrap(), p.get(i).unwrap()) {
+                (Int64(mmsi), UInt32(_len), List(ts), List(pt)) => {
+                    let seq = TSeq::make(&to_posit(&pt, &ts)).expect("tseq");
+                    let output = seq.as_json().unwrap();
+                    let ser = format!(r#"{{"id":{mmsi},"vt":{vtype},"json":{output}}}"#);
+                    let de = serde_json::from_str::<Rec>(&ser).unwrap();
+                    rows.push(GRow::from(de));
+                }
+                _ => {}
+            }
+        }
+    };
+
+    let ds = Dataset::<GRow> {
         info: Info {
             id: "0000",
             label: "example",
@@ -165,9 +248,12 @@ fn to_posit(p: &Series, t: &Series) -> Vec<TInst> {
 #[pyo3(name = "keplerviz")]
 fn keplerviz_module(_py: Python, m: &PyModule) -> PyResult<()> {
     meos::init();
-    m.add_function(wrap_pyfunction!(load_ais_csv, m)?)?;
-    m.add_function(wrap_pyfunction!(keplerize_df, m)?)?;
-    m.add_function(wrap_pyfunction!(keplerize_lf, m)?)?;
+    m.add_function(wrap_pyfunction!(animate_ais_csv, m)?)?;
+    m.add_function(wrap_pyfunction!(render_ais_csv, m)?)?;
+    m.add_function(wrap_pyfunction!(render_df, m)?)?;
+    m.add_function(wrap_pyfunction!(render_lf, m)?)?;
+    m.add_function(wrap_pyfunction!(animate_df, m)?)?;
+    m.add_function(wrap_pyfunction!(animate_lf, m)?)?;
 
     m.add_class::<PyHtml>()?;
     Ok(())
